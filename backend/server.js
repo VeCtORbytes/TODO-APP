@@ -17,7 +17,13 @@ app.options("*", cors());
 app.use(express.json());
 
 // Database
-mongoose.connect(process.env.MONGODB_URI).catch(e => console.log('DB Error:', e));
+mongoose
+  .connect(process.env.MONGODB_URI)
+  .then(() => console.log("MongoDB connected"))
+  .catch((err) => {
+    console.error("MongoDB connection error:", err);
+    process.exit(1);
+  });
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
