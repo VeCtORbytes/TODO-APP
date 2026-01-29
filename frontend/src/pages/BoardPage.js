@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect , useCallback } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import api from "../services/api"
 import "../styles/board.css"
@@ -14,24 +14,26 @@ export default function BoardPage() {
   const [filter, setFilter] = useState("all")
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchBoardAndTodos()
-  }, [boardId])
+  const fetchBoardAndTodos = useCallback(async () => {
+  try {
+    const boardRes = await api.get(`/boards/${boardId}`)
+    setBoard(boardRes.data)
 
-  const fetchBoardAndTodos = async () => {
-    try {
-      const boardRes = await api.get(`/boards/${boardId}`)
-      setBoard(boardRes.data)
-
-      const todosRes = await api.get(`/todos/${boardId}`)
-      setTodos(todosRes.data)
-    } catch (err) {
-      console.error("Failed to fetch board:", err)
-      navigate("/dashboard")
-    } finally {
-      setLoading(false)
-    }
+    const todosRes = await api.get(`/todos/${boardId}`)
+    setTodos(todosRes.data)
+  } catch (err) {
+    console.error("Failed to fetch board:", err)
+    navigate("/dashboard")
+  } finally {
+    setLoading(false)
   }
+}, [boardId, navigate])
+
+  useEffect(() => {
+  fetchBoardAndTodos()
+}, [fetchBoardAndTodos])
+
+
 
   const createTodo = async (e) => {
     e.preventDefault()

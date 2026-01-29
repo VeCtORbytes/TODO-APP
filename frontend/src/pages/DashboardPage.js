@@ -8,7 +8,7 @@ export default function Dashboard() {
   const [boards, setBoards] = useState([])
   const [newBoardTitle, setNewBoardTitle] = useState("")
   const [loading, setLoading] = useState(true)
-  const { user, logout } = useAuth()
+  const { user , logout } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -67,7 +67,7 @@ export default function Dashboard() {
       <div className="dashboard-header-wrapper">
         <div className="dashboard-header-content">
           <div className="dashboard-header-left">
-            <h1 className="dashboard-title">TODO LIST</h1>
+            <h1 className="dashboard-title">Dashboard - {user?.name}</h1>
             <p className="dashboard-subtitle">Organize your tasks and manage your work</p>
           </div>
           <button onClick={handleLogout} className="logout-btn">
