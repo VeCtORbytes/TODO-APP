@@ -1,150 +1,271 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import { useState, useEffect } from "react"
+import { useParams, useNavigate } from "react-router-dom"
+import api from "../services/api"
+import "../styles/board.css"
 
 export default function BoardPage() {
-  const { boardId } = useParams();
-  const navigate = useNavigate();
-  const [board, setBoard] = useState(null);
-  const [todos, setTodos] = useState([]);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState('medium');
-  const [status, setStatus] = useState('pending');
+  const { boardId } = useParams()
+  const navigate = useNavigate()
+  const [board, setBoard] = useState(null)
+  const [todos, setTodos] = useState([])
+  const [newTodoTitle, setNewTodoTitle] = useState("")
+  const [newTodoDesc, setNewTodoDesc] = useState("")
+  const [priority, setPriority] = useState("medium")
+  const [filter, setFilter] = useState("all")
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchBoard();
-    fetchTodos();
-  }, [boardId]);
+    fetchBoardAndTodos()
+  }, [boardId])
 
-  const fetchBoard = async () => {
+  const fetchBoardAndTodos = async () => {
     try {
-      const { data } = await api.get(`/boards/${boardId}`);
-      setBoard(data);
-    } catch {
-      navigate('/dashboard');
-    }
-  };
+      const boardRes = await api.get(`/boards/${boardId}`)
+      setBoard(boardRes.data)
 
-  const fetchTodos = async () => {
-    try {
-      const { data } = await api.get(`/todos/${boardId}`);
-      setTodos(data);
-    } catch {
-      console.error('Failed to fetch todos');
+      const todosRes = await api.get(`/todos/${boardId}`)
+      setTodos(todosRes.data)
+    } catch (err) {
+      console.error("Failed to fetch board:", err)
+      navigate("/dashboard")
+    } finally {
+      setLoading(false)
     }
-  };
+  }
 
   const createTodo = async (e) => {
-    e.preventDefault();
-    if (!title) return;
+    e.preventDefault()
+    if (!newTodoTitle.trim()) return
+
     try {
-      const { data } = await api.post('/todos', {
+      const { data } = await api.post("/todos", {
         boardId,
-        title,
-        description,
-        priority
-      });
-      setTodos([data, ...todos]);
-      setTitle('');
-      setDescription('');
-      setPriority('medium');
-    } catch {
-      alert('Failed to create todo');
+        title: newTodoTitle,
+        description: newTodoDesc,
+        priority,
+      })
+      setTodos([data, ...todos])
+      setNewTodoTitle("")
+      setNewTodoDesc("")
+      setPriority("medium")
+    } catch (err) {
+      alert("Failed to create todo")
     }
-  };
+  }
 
   const updateTodoStatus = async (todoId, newStatus) => {
     try {
-      const { data } = await api.put(`/todos/${todoId}`, { status: newStatus });
-      setTodos(todos.map(t => t._id === todoId ? data : t));
-    } catch {
-      alert('Failed to update todo');
+      const { data } = await api.put(`/todos/${todoId}`, { status: newStatus })
+      setTodos(todos.map((t) => (t._id === todoId ? data : t)))
+    } catch (err) {
+      alert("Failed to update todo")
     }
-  };
+  }
 
   const deleteTodo = async (todoId) => {
-    if (window.confirm('Delete todo?')) {
-      try {
-        await api.delete(`/todos/${todoId}`);
-        setTodos(todos.filter(t => t._id !== todoId));
-      } catch {
-        alert('Failed to delete todo');
-      }
-    }
-  };
+    if (!window.confirm("Delete this todo?")) return
 
-  if (!board) return <div style={{ padding: '20px' }}>Loading...</div>;
+    try {
+      await api.delete(`/todos/${todoId}`)
+      setTodos(todos.filter((t) => t._id !== todoId))
+    } catch (err) {
+      alert("Failed to delete todo")
+    }
+  }
+
+  const getFilteredTodos = () => {
+    if (filter === "completed") return todos.filter((t) => t.status === "completed")
+    if (filter === "active") return todos.filter((t) => t.status !== "completed")
+    return todos
+  }
+
+  const filteredTodos = getFilteredTodos()
+  const completedCount = todos.filter((t) => t.status === "completed").length
+  const activeCount = todos.filter((t) => t.status !== "completed").length
+
+  if (loading) {
+    return (
+      <div className="board-page-wrapper">
+        <div className="loading-state">
+          <p>Loading board...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!board) {
+    return (
+      <div className="board-page-wrapper">
+        <div className="loading-state">
+          <p>Board not found</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div style={{ padding: '20px' }}>
-      <button onClick={() => navigate('/dashboard')} style={{ marginBottom: '20px' }}>
-        ← Back to Boards
-      </button>
+    <div className="board-page-wrapper">
+      {/* Header */}
+      <div className="board-header-wrapper">
+        <div className="board-header-content">
+          <div className="board-header-left">
+            <button onClick={() => navigate("/dashboard")} className="back-btn">
+              ← Back to Boards
+            </button>
+            <h1 className="board-title">{board.title}</h1>
+            <p className="board-subtitle">{board.description || "No description"}</p>
+          </div>
+        </div>
+      </div>
 
-      <h1>{board.title}</h1>
-      <p>{board.description}</p>
-
-      <form onSubmit={createTodo} style={{ marginBottom: '30px', padding: '15px', border: '1px solid #ddd', borderRadius: '8px' }}>
-        <h3>Add Todo</h3>
-        <input
-          type="text"
-          placeholder="Todo title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          style={{ width: '100%', padding: '8px', marginBottom: '10px', boxSizing: 'border-box' }}
-          required
-        />
-        <textarea
-          placeholder="Description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          style={{ width: '100%', padding: '8px', marginBottom: '10px', boxSizing: 'border-box' }}
-        />
-        <select
-          value={priority}
-          onChange={(e) => setPriority(e.target.value)}
-          style={{ width: '100%', padding: '8px', marginBottom: '10px', boxSizing: 'border-box' }}
-        >
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-        </select>
-        <button type="submit" style={{ padding: '8px 16px', cursor: 'pointer' }}>
-          Add Todo
-        </button>
-      </form>
-
-      <h2>Todos ({todos.length})</h2>
-      <div style={{ display: 'grid', gap: '10px' }}>
-        {todos.map(todo => (
-          <div key={todo._id} style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '8px' }}>
-            <h3 style={{ margin: '0 0 5px 0' }}>{todo.title}</h3>
-            <p style={{ margin: '5px 0', fontSize: '14px' }}>{todo.description}</p>
-            <div style={{ display: 'flex', gap: '10px', fontSize: '12px', marginBottom: '10px' }}>
-              <span>Priority: <strong>{todo.priority}</strong></span>
-              <span>Status: <strong>{todo.status}</strong></span>
-            </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
+      {/* Main Content */}
+      <div className="board-container">
+        {/* Add Todo Section */}
+        <div className="add-todo-card">
+          <h2 className="add-todo-title">Add Todo</h2>
+          <form onSubmit={createTodo} className="add-todo-form">
+            <input
+              type="text"
+              value={newTodoTitle}
+              onChange={(e) => setNewTodoTitle(e.target.value)}
+              placeholder="Todo title..."
+              className="todo-input"
+            />
+            <textarea
+              value={newTodoDesc}
+              onChange={(e) => setNewTodoDesc(e.target.value)}
+              placeholder="Description (optional)"
+              className="todo-textarea"
+              rows="3"
+            ></textarea>
+            <div className="todo-form-footer">
               <select
-                value={todo.status}
-                onChange={(e) => updateTodoStatus(todo._id, e.target.value)}
-                style={{ padding: '4px' }}
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+                className="priority-select"
               >
-                <option value="pending">Pending</option>
-                <option value="in-progress">In Progress</option>
-                <option value="completed">Completed</option>
+                <option value="low">Low Priority</option>
+                <option value="medium">Medium Priority</option>
+                <option value="high">High Priority</option>
               </select>
-              <button
-                onClick={() => deleteTodo(todo._id)}
-                style={{ color: 'red', background: 'none', border: 'none', cursor: 'pointer' }}
-              >
-                Delete
+              <button type="submit" className="btn-add-todo">
+                + Add Todo
               </button>
             </div>
+          </form>
+        </div>
+
+        {/* Filter Tabs */}
+        <div className="filter-tabs-wrapper">
+          <div className="filter-tabs">
+            {[
+              { key: "all", label: "All", count: todos.length },
+              { key: "active", label: "Active", count: activeCount },
+              { key: "completed", label: "Completed", count: completedCount },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setFilter(tab.key)}
+                className={`tab-button ${filter === tab.key ? "active" : ""}`}
+              >
+                <span>{tab.label}</span>
+                <span className="tab-count">{tab.count}</span>
+              </button>
+            ))}
           </div>
-        ))}
+        </div>
+
+        {/* Todos List */}
+        <div className="todos-wrapper">
+          {filteredTodos.length === 0 ? (
+            <div className="empty-todos">
+              <h3>No todos found</h3>
+              <p>
+                {filter === "all" && "Add your first todo to get started"}
+                {filter === "active" && "All tasks completed! Great job!"}
+                {filter === "completed" && "No completed tasks yet"}
+              </p>
+            </div>
+          ) : (
+            <div className="todos-list">
+              {filteredTodos.map((todo) => (
+                <div key={todo._id} className="todo-item">
+                  <button
+                    onClick={() => {
+                      const newStatus = todo.status === "completed" ? "pending" : "completed"
+                      updateTodoStatus(todo._id, newStatus)
+                    }}
+                    className={`todo-checkbox ${todo.status === "completed" ? "checked" : ""}`}
+                  >
+                    {todo.status === "completed" && "✓"}
+                  </button>
+
+                  <div className="todo-content">
+                    <h4 className={`todo-title ${todo.status === "completed" ? "completed" : ""}`}>
+                      {todo.title}
+                    </h4>
+                    {todo.description && (
+                      <p className="todo-description">{todo.description}</p>
+                    )}
+                    <div className="todo-meta">
+                      <span className={`priority-badge priority-${todo.priority}`}>
+                        {todo.priority}
+                      </span>
+                      {todo.dueDate && (
+                        <span className="todo-date">
+                          {new Date(todo.dueDate).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => deleteTodo(todo._id)}
+                    className="btn-delete-todo"
+                    title="Delete todo"
+                  >
+                    <span className="material-symbols-outlined">delete_forever</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Statistics */}
+        {todos.length > 0 && (
+          <div className="stats-card">
+            <h3 className="stats-title">Progress</h3>
+            <div className="stats-grid">
+              <div className="stat-item total">
+                <div className="stat-number">{todos.length}</div>
+                <div className="stat-label">Total</div>
+              </div>
+              <div className="stat-item active">
+                <div className="stat-number">{activeCount}</div>
+                <div className="stat-label">Active</div>
+              </div>
+              <div className="stat-item completed">
+                <div className="stat-number">{completedCount}</div>
+                <div className="stat-label">Completed</div>
+              </div>
+            </div>
+
+            <div className="progress-section">
+              <div className="progress-label">
+                <span>Completion</span>
+                <span>{Math.round((completedCount / todos.length) * 100)}%</span>
+              </div>
+              <div className="progress-bar">
+                <div
+                  className="progress-fill"
+                  style={{ width: (completedCount / todos.length) * 100 + "%" }}
+                ></div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
-  );
+  )
 }

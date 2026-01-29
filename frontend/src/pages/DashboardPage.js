@@ -1,103 +1,157 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
-import { useAuth } from '../hooks/useAuth';
+import { useState, useEffect } from "react"
+import api from "../services/api"
+import { useAuth } from "../hooks/useAuth"
+import { useNavigate } from "react-router-dom"
+import "../styles/dashboard.css"
 
-export default function DashboardPage() {
-  const [boards, setBoards] = useState([]);
-  const [title, setTitle] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
+export default function Dashboard() {
+  const [boards, setBoards] = useState([])
+  const [newBoardTitle, setNewBoardTitle] = useState("")
+  const [loading, setLoading] = useState(true)
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
 
   useEffect(() => {
-    fetchBoards();
-  }, []);
+    fetchBoards()
+  }, [])
 
   const fetchBoards = async () => {
     try {
-      const { data } = await api.get('/boards');
-      setBoards(data);
-    } catch {
-      setError('Failed to fetch boards');
+      const { data } = await api.get("/boards")
+      setBoards(data)
+    } catch (err) {
+      console.error("Failed to fetch boards:", err)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const createBoard = async (e) => {
-    e.preventDefault();
-    if (!title) return;
+    e.preventDefault()
+    if (!newBoardTitle.trim()) return
+
+  const colors = ["#ea580c", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"]
+  const randomColor = colors[Math.floor(Math.random() * colors.length)]
+
     try {
-      const { data } = await api.post('/boards', { title });
-      setBoards([data, ...boards]);
-      setTitle('');
-    } catch {
-      setError('Failed to create board');
+      const { data } = await api.post("/boards", {
+      title: newBoardTitle, 
+      color: randomColor 
+    })
+      setBoards([data, ...boards])
+      setNewBoardTitle("")
+    } catch (err) {
+      alert("Failed to create board")
     }
-  };
+  }
 
   const deleteBoard = async (id) => {
-    if (window.confirm('Delete board?')) {
-      try {
-        await api.delete(`/boards/${id}`);
-        setBoards(boards.filter(b => b._id !== id));
-      } catch {
-        setError('Failed to delete board');
-      }
+    if (!window.confirm("Delete this board and all todos?")) return
+
+    try {
+      await api.delete(`/boards/${id}`)
+      setBoards(boards.filter((b) => b._id !== id))
+    } catch (err) {
+      alert("Failed to delete board")
     }
-  };
+  }
 
   const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+    logout()
+    navigate("/login")
+  }
 
   return (
-    <div style={{ padding: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h1>Dashboard - {user?.name}</h1>
-        <button onClick={handleLogout} style={{ padding: '8px 16px', cursor: 'pointer' }}>
-          Logout
-        </button>
+    <div className="dashboard-wrapper">
+      {/* Header */}
+      <div className="dashboard-header-wrapper">
+        <div className="dashboard-header-content">
+          <div className="dashboard-header-left">
+            <h1 className="dashboard-title">TODO LIST</h1>
+            <p className="dashboard-subtitle">Organize your tasks and manage your work</p>
+          </div>
+          <button onClick={handleLogout} className="logout-btn">
+            Logout
+          </button>
+        </div>
       </div>
 
-      {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
-
-      <form onSubmit={createBoard} style={{ marginBottom: '20px' }}>
-        <input
-          type="text"
-          placeholder="New board title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          style={{ padding: '8px', marginRight: '10px', width: '300px' }}
-        />
-        <button type="submit" style={{ padding: '8px 16px', cursor: 'pointer' }}>
-          Create Board
-        </button>
-      </form>
-
-      {loading ? <p>Loading...</p> : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
-          {boards.map(board => (
-            <div key={board._id} style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '8px', cursor: 'pointer' }}>
-              <h3 onClick={() => navigate(`/board/${board._id}`)} style={{ margin: '0 0 10px 0' }}>
-                {board.title}
-              </h3>
-              <p style={{ margin: '5px 0', fontSize: '12px', color: '#666' }}>
-                {board.description || 'No description'}
-              </p>
-              <button
-                onClick={() => deleteBoard(board._id)}
-                style={{ color: 'red', background: 'none', border: 'none', cursor: 'pointer' }}
-              >
-                Delete
-              </button>
-            </div>
-          ))}
+      {/* Main Content */}
+      <div className="dashboard-container">
+        {/* Create Board Card */}
+        <div className="create-board-card">
+          <form onSubmit={createBoard} className="create-board-form">
+            <input
+              type="text"
+              value={newBoardTitle}
+              onChange={(e) => setNewBoardTitle(e.target.value)}
+              placeholder="Enter board name..."
+              className="board-input-field"
+            />
+            <button type="submit" className="create-board-btn">
+              Create Board
+            </button>
+          </form>
         </div>
-      )}
+
+        {/* Boards Grid */}
+        {loading ? (
+          <div className="loading-state">
+            <p>Loading your boards...</p>
+          </div>
+        ) : boards.length === 0 ? (
+          <div className="empty-state-card">
+            <div className="empty-state-content">
+              <h2>No boards yet</h2>
+              <p>Create your first board to get started</p>
+            </div>
+          </div>
+        ) : (
+          <div className="boards-container">
+            {boards.map((board) => (
+              <div
+                key={board._id}
+                className="board-grid-card"
+                onClick={() => navigate(`/board/${board._id}`)}
+              >
+                <div className="board-card-inner">
+                  <div className="board-card-header">
+                    <h3 className="board-card-title">{board.title}</h3>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        deleteBoard(board._id)
+                      }}
+                      className="board-delete-btn"
+                      title="Delete board"
+                    >
+                    <span class="material-symbols-outlined">delete_forever</span>
+                    </button>
+                  </div>
+                  
+                  <p className="board-card-description">
+                    {board.description || "No description"}
+                  </p>
+                  
+                  <div className="board-card-footer">
+                    <span className="board-date">
+                      {new Date(board.createdAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </span>
+                    <div
+                      className="board-color-dot"
+                      style={{ backgroundColor: board.color || "#ea580c" }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
-  );
+  )
 }
